@@ -1,0 +1,730 @@
+local Players = game:GetService("Players")
+local camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- CONFIGURAÇÕES AVANÇADAS
+local FOV_RADIUS = 180
+local FOV_COLOR = Color3.fromRGB(255, 50, 50)
+local ROTATE_SPEED = 1.5
+local FLY_SPEED = 180
+local AIMBOT_LOCK_RANGE = 120
+local TP_SPEED = 0.12
+local MENU_KEY = Enum.KeyCode.F1
+
+-- ESTADOS
+local isFOVEnabled = false
+local isAimbotEnabled = false
+local isEspEnabled = false
+local isFlyEnabled = false
+local isMenuVisible = true
+local currentTarget = nil
+local rotateAngle = 0
+
+-- VARIÁVEIS FLY
+local flyBodyVelocity = nil
+local flyBodyGyro = nil
+local flyConnection = nil
+
+-- ============================================
+-- MENU PROFISSIONAL CENTRALIZADO
+-- ============================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ISPAIK_PRO"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+-- Frame principal CENTRALIZADO
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)  -- Ponto de ancoragem central
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)  -- Centro da tela
+mainFrame.Size = UDim2.new(0, 320, 0, 420)  -- Aumentado um pouco
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Visible = true
+mainFrame.Parent = screenGui
+
+-- Borda com efeito sutil
+local border = Instance.new("Frame")
+border.Name = "Border"
+border.Size = UDim2.new(1, 2, 1, 2)
+border.Position = UDim2.new(0, -1, 0, -1)
+border.BackgroundTransparency = 1
+border.BorderColor3 = Color3.fromRGB(80, 80, 80)
+border.BorderSizePixel = 1
+border.Parent = mainFrame
+
+-- Borda interna
+local innerBorder = Instance.new("Frame")
+innerBorder.Name = "InnerBorder"
+innerBorder.Size = UDim2.new(1, -4, 1, -4)
+innerBorder.Position = UDim2.new(0, 2, 0, 2)
+innerBorder.BackgroundTransparency = 1
+innerBorder.BorderColor3 = Color3.fromRGB(40, 40, 40)
+innerBorder.BorderSizePixel = 1
+innerBorder.Parent = mainFrame
+
+-- Header com gradiente
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 60)  -- Aumentado
+header.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+-- Efeito de gradiente no header
+local headerGradient = Instance.new("UIGradient")
+headerGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(25, 25, 25)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+})
+headerGradient.Parent = header
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Text = "𝕀𝕊ℙ𝔸𝕀𝕂 𝕍𝟚.𝟛"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 26  -- Aumentado
+title.TextColor3 = Color3.fromRGB(220, 60, 60)
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0.6, 0)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = header
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Name = "Subtitle"
+subtitle.Text = "[F1] Toggle Menu • Aimbot Range: " .. AIMBOT_LOCK_RANGE .. " studs"
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextSize = 12
+subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+subtitle.BackgroundTransparency = 1
+subtitle.Size = UDim2.new(1, 0, 0, 20)
+subtitle.Position = UDim2.new(0, 0, 0, 35)
+subtitle.TextXAlignment = Enum.TextXAlignment.Center
+subtitle.Parent = header
+
+-- Scroll container centralizado
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ScrollFrame"
+scrollFrame.Position = UDim2.new(0, 15, 0, 70)  -- Ajustado
+scrollFrame.Size = UDim2.new(1, -30, 1, -85)   -- Ajustado
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+scrollFrame.Parent = mainFrame
+
+local buttonLayout = Instance.new("UIListLayout")
+buttonLayout.Padding = UDim.new(0, 10)  -- Mais espaçamento
+buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+buttonLayout.Parent = scrollFrame
+
+-- Função para criar botões modernos centralizados
+local function createModernButton(text, icon)
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Name = "Btn_" .. text:gsub("[%s%-]", "")
+    buttonContainer.Size = UDim2.new(0.95, 0, 0, 50)  -- Aumentado
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = scrollFrame
+    
+    local button = Instance.new("TextButton")
+    button.Name = "Button"
+    button.Text = ""
+    button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    button.BorderSizePixel = 0
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.AutoButtonColor = false
+    button.Parent = buttonContainer
+    
+    -- Efeito de brilho ao hover
+    local hoverEffect = Instance.new("Frame")
+    hoverEffect.Name = "HoverEffect"
+    hoverEffect.Size = UDim2.new(1, 0, 1, 0)
+    hoverEffect.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    hoverEffect.BackgroundTransparency = 0.95
+    hoverEffect.BorderSizePixel = 0
+    hoverEffect.Visible = false
+    hoverEffect.Parent = button
+    
+    -- Efeito de clique
+    local clickEffect = Instance.new("Frame")
+    clickEffect.Name = "ClickEffect"
+    clickEffect.Size = UDim2.new(1, 0, 1, 0)
+    clickEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    clickEffect.BackgroundTransparency = 0.9
+    clickEffect.BorderSizePixel = 0
+    clickEffect.Visible = false
+    clickEffect.Parent = button
+    
+    button.MouseEnter:Connect(function()
+        hoverEffect.Visible = true
+        button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    end)
+    
+    button.MouseLeave:Connect(function()
+        hoverEffect.Visible = false
+        clickEffect.Visible = false
+        button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    end)
+    
+    button.MouseButton1Down:Connect(function()
+        clickEffect.Visible = true
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        clickEffect.Visible = false
+    end)
+    
+    -- Ícone
+    if icon then
+        local iconLabel = Instance.new("TextLabel")
+        iconLabel.Text = icon
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.TextSize = 20  -- Aumentado
+        iconLabel.TextColor3 = Color3.fromRGB(220, 60, 60)
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.Size = UDim2.new(0, 45, 1, 0)  -- Aumentado
+        iconLabel.Position = UDim2.new(0, 15, 0, 0)
+        iconLabel.TextXAlignment = Enum.TextXAlignment.Left
+        iconLabel.Parent = button
+    end
+    
+    -- Texto do botão
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Name = "TextLabel"
+    textLabel.Text = text
+    textLabel.Font = Enum.Font.Gotham
+    textLabel.TextSize = 15  -- Aumentado
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Size = UDim2.new(1, -70, 1, 0)  -- Ajustado
+    textLabel.Position = UDim2.new(0, 65, 0, 0)  -- Ajustado
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.Parent = button
+    
+    -- Status
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "Status"
+    statusLabel.Text = "OFF"
+    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.TextSize = 13  -- Aumentado
+    statusLabel.TextColor3 = Color3.fromRGB(180, 50, 50)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Size = UDim2.new(0, 60, 1, 0)
+    statusLabel.Position = UDim2.new(1, -75, 0, 0)  -- Ajustado
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+    statusLabel.Parent = button
+    
+    return buttonContainer, textLabel, statusLabel
+end
+
+-- Criar botões
+local btnFov, fovText, fovStatus = createModernButton("FOV Circle", "◯")
+local btnAimbot, aimbotText, aimbotStatus = createModernButton("Aimbot [" .. AIMBOT_LOCK_RANGE .. " studs]", "🎯")
+local btnEsp, espText, espStatus = createModernButton("ESP System", "👁️")
+local btnFly, flyText, flyStatus = createModernButton("Flight System", "🚀")
+local btnTPList, tplistText, tplistStatus = createModernButton("Player Teleport", "📋")
+local btnQuickTP, quicktpText, quicktpStatus = createModernButton("Quick Teleport", "⚡")
+
+-- Container da lista de TP (estilo dropdown)
+local tpListContainer = Instance.new("Frame")
+tpListContainer.Name = "TPListContainer"
+tpListContainer.Size = UDim2.new(0.95, 0, 0, 0)
+tpListContainer.BackgroundTransparency = 1
+tpListContainer.Visible = false
+tpListContainer.Parent = scrollFrame
+
+local tpListLayout = Instance.new("UIListLayout")
+tpListLayout.Padding = UDim.new(0, 5)
+tpListLayout.Parent = tpListContainer
+
+-- Função para criar botões da lista de TP
+local function createTPButton(playerName)
+    local tpButton = Instance.new("TextButton")
+    tpButton.Name = "TP_" .. playerName
+    tpButton.Text = "  " .. playerName
+    tpButton.Font = Enum.Font.Gotham
+    tpButton.TextSize = 14
+    tpButton.TextColor3 = Color3.new(1, 1, 1)
+    tpButton.TextXAlignment = Enum.TextXAlignment.Left
+    tpButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    tpButton.BorderSizePixel = 0
+    tpButton.Size = UDim2.new(1, 0, 0, 35)
+    tpButton.AutoButtonColor = false
+    
+    -- Hover effect para TP buttons
+    local tpButtonHover = Instance.new("Frame")
+    tpButtonHover.Size = UDim2.new(1, 0, 1, 0)
+    tpButtonHover.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    tpButtonHover.BackgroundTransparency = 0.95
+    tpButtonHover.Visible = false
+    tpButtonHover.Parent = tpButton
+    
+    tpButton.MouseEnter:Connect(function()
+        tpButtonHover.Visible = true
+        tpButton.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    end)
+    
+    tpButton.MouseLeave:Connect(function()
+        tpButtonHover.Visible = false
+        tpButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    end)
+    
+    return tpButton
+end
+
+-- CÍRCULO FOV
+local Drawing = Drawing
+local fovCircle = Drawing.new("Circle")
+fovCircle.Position = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+fovCircle.Radius = FOV_RADIUS
+fovCircle.Color = FOV_COLOR
+fovCircle.Thickness = 2
+fovCircle.Transparency = 0.7
+fovCircle.NumSides = 80
+fovCircle.Filled = false
+fovCircle.Visible = false
+
+local barCount, fovBars = 8, {}
+for i = 1, barCount do
+    local line = Drawing.new("Line")
+    line.Color = FOV_COLOR
+    line.Thickness = 2
+    line.Transparency = 0.8
+    line.Visible = false
+    table.insert(fovBars, line)
+end
+
+-- ESP
+local highlights = {}
+local hpBarsDrawings = {}
+
+local function removeEsp(player)
+    if highlights[player] and highlights[player].Parent then
+        highlights[player]:Destroy()
+    end
+    highlights[player] = nil
+    
+    if hpBarsDrawings[player] then
+        for _, obj in pairs(hpBarsDrawings[player]) do
+            if obj.Remove then obj:Remove() end
+        end
+        hpBarsDrawings[player] = nil
+    end
+end
+
+local function applyEsp(player)
+    if player.Character and not highlights[player] and player ~= localPlayer then
+        local highlight = Instance.new("Highlight")
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillColor = Color3.fromRGB(255, 50, 50)
+        highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0.1
+        highlight.Parent = player.Character
+        highlights[player] = highlight
+    end
+    
+    if not hpBarsDrawings[player] and player ~= localPlayer then
+        local bg = Drawing.new("Square")
+        bg.Size = Vector2.new(50, 7)
+        bg.Color = Color3.fromRGB(30, 30, 30)
+        bg.Filled = true
+        bg.Transparency = 0.8
+        bg.Visible = true
+
+        local bar = Drawing.new("Square")
+        bar.Size = Vector2.new(48, 5)
+        bar.Color = Color3.fromRGB(255, 50, 50)
+        bar.Filled = true
+        bar.Transparency = 0.8
+        bar.Visible = true
+
+        hpBarsDrawings[player] = {background = bg, bar = bar}
+    end
+end
+
+local function updateEsp()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            if isEspEnabled then
+                applyEsp(player)
+            else
+                removeEsp(player)
+            end
+        end
+    end
+end
+
+-- ============================================
+-- FUNÇÃO FLY
+-- ============================================
+local function toggleFly()
+    if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    local root = localPlayer.Character.HumanoidRootPart
+    
+    if isFlyEnabled then
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if flyConnection then flyConnection:Disconnect() end
+        isFlyEnabled = false
+        flyStatus.Text = "OFF"
+        flyStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+    else
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        flyBodyVelocity.Parent = root
+        
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        flyBodyGyro.P = 10000
+        flyBodyGyro.CFrame = root.CFrame
+        flyBodyGyro.Parent = root
+        
+        isFlyEnabled = true
+        flyStatus.Text = "ON"
+        flyStatus.TextColor3 = Color3.fromRGB(50, 180, 50)
+        
+        flyConnection = RunService.RenderStepped:Connect(function()
+            if not isFlyEnabled or not root or not flyBodyVelocity then return end
+            
+            local moveDirection = Vector3.new(0, 0, 0)
+            local speed = FLY_SPEED
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                speed = FLY_SPEED * 2
+            end
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                moveDirection = moveDirection + (root.CFrame.LookVector * speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveDirection = moveDirection - (root.CFrame.LookVector * speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveDirection = moveDirection - (root.CFrame.RightVector * speed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveDirection = moveDirection + (root.CFrame.RightVector * speed)
+            end
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.E) then
+                moveDirection = moveDirection + Vector3.new(0, speed, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Q) then
+                moveDirection = moveDirection - Vector3.new(0, speed, 0)
+            end
+            
+            flyBodyVelocity.Velocity = moveDirection
+            if flyBodyGyro then
+                flyBodyGyro.CFrame = camera.CFrame
+            end
+        end)
+    end
+end
+
+-- UPDATE TP LIST
+local function updateTPList()
+    for _, child in ipairs(tpListContainer:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    local yOffset = 0
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local tpButton = createTPButton(player.Name)
+            tpButton.Position = UDim2.new(0, 0, 0, yOffset)
+            tpButton.Parent = tpListContainer
+            
+            tpButton.MouseButton1Click:Connect(function()
+                local targetChar = player.Character
+                local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                
+                if targetRoot and localRoot then
+                    local teleportPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 5)
+                    local tweenInfo = TweenInfo.new(TP_SPEED, Enum.EasingStyle.Linear)
+                    local tween = TweenService:Create(localRoot, tweenInfo, {CFrame = CFrame.new(teleportPos)})
+                    tween:Play()
+                    
+                    tpButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+                    task.wait(0.2)
+                    tpButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+                end
+            end)
+            
+            yOffset = yOffset + 40
+        end
+    end
+    
+    tpListContainer.Size = UDim2.new(1, 0, 0, yOffset)
+end
+
+-- TOGGLE TP LIST
+local isTPListOpen = false
+btnTPList.Button.MouseButton1Click:Connect(function()
+    isTPListOpen = not isTPListOpen
+    tpListContainer.Visible = isTPListOpen
+    
+    if isTPListOpen then
+        tplistStatus.Text = "OPEN"
+        tplistStatus.TextColor3 = Color3.fromRGB(50, 180, 50)
+        updateTPList()
+    else
+        tplistStatus.Text = "CLOSED"
+        tplistStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+-- QUICK TP
+btnQuickTP.Button.MouseButton1Click:Connect(function()
+    local target = currentTarget
+    if not target then
+        local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+        local closestRoot, closestDist = nil, math.huge
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local root = player.Character.HumanoidRootPart
+                local rootPos, visible = camera:WorldToViewportPoint(root.Position)
+                if visible then
+                    local screenPos = Vector2.new(rootPos.X, rootPos.Y)
+                    local dist2d = (screenPos - screenCenter).Magnitude
+                    if dist2d < closestDist then
+                        closestDist = dist2d
+                        closestRoot = root
+                    end
+                end
+            end
+        end
+        target = closestRoot
+    end
+    
+    if target and target.Parent then
+        local targetRoot = target:IsA("Part") and target or target.Parent:FindFirstChild("HumanoidRootPart")
+        local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if targetRoot and localRoot then
+            local teleportPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 5)
+            local tweenInfo = TweenInfo.new(TP_SPEED, Enum.EasingStyle.Linear)
+            local tween = TweenService:Create(localRoot, tweenInfo, {CFrame = CFrame.new(teleportPos)})
+            tween:Play()
+            
+            quicktpStatus.Text = "DONE"
+            quicktpStatus.TextColor3 = Color3.fromRGB(50, 180, 50)
+            task.wait(0.5)
+            quicktpStatus.Text = "READY"
+            quicktpStatus.TextColor3 = Color3.fromRGB(180, 180, 50)
+        end
+    end
+end)
+
+-- ============================================
+-- FUNÇÃO AIMBOT
+-- ============================================
+local function getClosestPlayerHeadWithinFOV()
+    local closestHead, closestDist = nil, math.huge
+    local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                local dist3d = (root.Position - camera.CFrame.Position).Magnitude
+                
+                if dist3d <= AIMBOT_LOCK_RANGE then
+                    local headPos, visible = camera:WorldToViewportPoint(head.Position)
+                    if visible then
+                        local headScreenPos = Vector2.new(headPos.X, headPos.Y)
+                        local dist2d = (headScreenPos - screenCenter).Magnitude
+                        
+                        if dist2d < FOV_RADIUS and dist2d < closestDist then
+                            closestDist = dist2d
+                            closestHead = head
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestHead
+end
+
+local aimbotSmoothness = 0.2
+
+-- ============================================
+-- BOTÕES CLICK EVENTS
+-- ============================================
+btnFov.Button.MouseButton1Click:Connect(function()
+    isFOVEnabled = not isFOVEnabled
+    fovCircle.Visible = isFOVEnabled
+    fovStatus.Text = isFOVEnabled and "ON" or "OFF"
+    fovStatus.TextColor3 = isFOVEnabled and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
+end)
+
+btnAimbot.Button.MouseButton1Click:Connect(function()
+    isAimbotEnabled = not isAimbotEnabled
+    if not isAimbotEnabled then currentTarget = nil end
+    aimbotStatus.Text = isAimbotEnabled and "ON" or "OFF"
+    aimbotStatus.TextColor3 = isAimbotEnabled and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
+end)
+
+btnEsp.Button.MouseButton1Click:Connect(function()
+    isEspEnabled = not isEspEnabled
+    updateEsp()
+    espStatus.Text = isEspEnabled and "ON" or "OFF"
+    espStatus.TextColor3 = isEspEnabled and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
+end)
+
+btnFly.Button.MouseButton1Click:Connect(function()
+    toggleFly()
+end)
+
+-- ============================================
+-- CONTROLES
+-- ============================================
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == MENU_KEY then
+        isMenuVisible = not isMenuVisible
+        mainFrame.Visible = isMenuVisible
+    end
+end)
+
+-- UPDATE CANVAS SIZE
+buttonLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, buttonLayout.AbsoluteContentSize.Y + 20)
+end)
+
+-- ============================================
+-- RENDER LOOP
+-- ============================================
+RunService.RenderStepped:Connect(function(dt)
+    local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    fovCircle.Position = center
+    
+    -- FOV Rotation
+    rotateAngle = rotateAngle + dt * ROTATE_SPEED
+    if rotateAngle > math.pi * 2 then rotateAngle = rotateAngle - math.pi * 2 end
+    for i, line in ipairs(fovBars) do
+        local angle = rotateAngle + (2 * math.pi * (i-1)/barCount)
+        local startVec = center + Vector2.new(
+            math.cos(angle) * (FOV_RADIUS - 15),
+            math.sin(angle) * (FOV_RADIUS - 15)
+        )
+        local endVec = center + Vector2.new(
+            math.cos(angle) * (FOV_RADIUS + 15),
+            math.sin(angle) * (FOV_RADIUS + 15)
+        )
+        line.From = startVec
+        line.To = endVec
+        line.Visible = isFOVEnabled
+    end
+    fovCircle.Visible = isFOVEnabled
+    
+    -- AIMBOT
+    if isAimbotEnabled then
+        if not currentTarget or not currentTarget.Parent then
+            currentTarget = getClosestPlayerHeadWithinFOV()
+        else
+            local head = currentTarget
+            local root = head.Parent:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                local dist3d = (root.Position - camera.CFrame.Position).Magnitude
+                local headPos, visible = camera:WorldToViewportPoint(head.Position)
+                local headScreenPos = Vector2.new(headPos.X, headPos.Y)
+                local dist2d = (headScreenPos - center).Magnitude
+                
+                if not visible or dist2d > FOV_RADIUS or dist3d > AIMBOT_LOCK_RANGE then
+                    currentTarget = getClosestPlayerHeadWithinFOV()
+                end
+            else
+                currentTarget = getClosestPlayerHeadWithinFOV()
+            end
+        end
+        
+        if currentTarget then
+            local targetPosition = currentTarget.Position
+            local currentCameraCFrame = camera.CFrame
+            local targetCFrame = CFrame.new(currentCameraCFrame.Position, targetPosition)
+            camera.CFrame = currentCameraCFrame:Lerp(targetCFrame, aimbotSmoothness)
+        end
+    else
+        currentTarget = nil
+    end
+    
+    -- ESP UPDATE
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            if isEspEnabled and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChildWhichIsA("Humanoid") then
+                applyEsp(player)
+                
+                local head = player.Character.Head
+                local humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+                local hp, maxhp = humanoid.Health, humanoid.MaxHealth
+                local headScreen, visible = camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
+                
+                if hpBarsDrawings[player] then
+                    for _, obj in pairs(hpBarsDrawings[player]) do
+                        obj.Visible = visible and hp > 0
+                    end
+                    
+                    if visible then
+                        hpBarsDrawings[player].background.Position = Vector2.new(headScreen.X - 25, headScreen.Y - 25)
+                        local frac = math.clamp(hp/maxhp, 0, 1)
+                        hpBarsDrawings[player].bar.Size = Vector2.new(48 * frac, 5)
+                        hpBarsDrawings[player].bar.Position = Vector2.new(headScreen.X - 24, headScreen.Y - 24)
+                        
+                        if frac > 0.6 then
+                            hpBarsDrawings[player].bar.Color = Color3.fromRGB(50, 220, 50)
+                        elseif frac > 0.3 then
+                            hpBarsDrawings[player].bar.Color = Color3.fromRGB(220, 220, 50)
+                        else
+                            hpBarsDrawings[player].bar.Color = Color3.fromRGB(220, 50, 50)
+                        end
+                    end
+                end
+            else
+                removeEsp(player)
+            end
+        end
+    end
+end)
+
+-- Update initial button status
+fovStatus.Text = "OFF"
+fovStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+aimbotStatus.Text = "OFF"
+aimbotStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+espStatus.Text = "OFF"
+espStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+flyStatus.Text = "OFF"
+flyStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+tplistStatus.Text = "CLOSED"
+tplistStatus.TextColor3 = Color3.fromRGB(180, 50, 50)
+quicktpStatus.Text = "READY"
+quicktpStatus.TextColor3 = Color3.fromRGB(180, 180, 50)
+
+-- Display info
+print("========================================")
+print("ISPAIK V2.3 Professional Suite Loaded!")
+print("Menu Position: CENTER SCREEN")
+print("Aimbot Range: " .. AIMBOT_LOCK_RANGE .. " studs")
+print("Fly Speed: " .. FLY_SPEED .. " studs/s")
+print("Controls: F1 = Toggle Menu")
+print("========================================")
